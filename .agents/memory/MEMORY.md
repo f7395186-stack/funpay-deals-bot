@@ -1,0 +1,1 @@
+- [Telegram premium emoji in buttons](telegram-bot-button-emoji.md) — Bot API buttons are plain text only, custom emoji can't render there regardless of Premium.

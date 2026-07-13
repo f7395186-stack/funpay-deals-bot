@@ -43,3 +43,4 @@ _Populate as you build — sharp edges, "always run X before Y" rules._
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- `telegram-bot/` — standalone Python (aiogram) Telegram bot "Funpay Deals Bot", a manual-mediated escrow service for FunPay-style deals (create deal → buyer pays → seller ships via support → buyer confirms → seller balance credited). Runs as its own workflow (`Funpay Deals Bot`), independent from the pnpm workspace. Requires the `BOT_TOKEN` secret.
