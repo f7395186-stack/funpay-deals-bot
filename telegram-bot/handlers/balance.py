@@ -14,8 +14,11 @@ CUR_FIELDS = [("Stars", "bal_stars"), ("USDT", "bal_usdt"), ("TON", "bal_ton"),
               ("RUB", "bal_rub"), ("BYN", "bal_byn"), ("KZT", "bal_kzt"), ("UZS", "bal_uzs")]
 
 
-def _balance_text(user) -> str:
-    lines = [f"{em.WALLET} <b>Ваш баланс</b>\n"]
+def _balance_text(user, user_id: int) -> str:
+    lines = [
+        f"{em.WALLET} <b>Ваш баланс</b>\n",
+        f"{em.KEY} Ваш ID: <code>{user_id}</code>\n",
+    ]
     for cur, field in CUR_FIELDS:
         val = user[field] if user else 0
         lines.append(f"{CUR_SYM[cur]} {fmt(val)} {cur}")
@@ -26,8 +29,67 @@ def _balance_text(user) -> str:
 async def balance_handler(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     user = await db.get_user(callback.from_user.id)
-    await edit_msg(callback.message, _balance_text(user), reply_markup=kb.balance_kb())
+    await edit_msg(callback.message, _balance_text(user, callback.from_user.id), reply_markup=kb.balance_kb())
     await callback.answer()
+
+
+@router.message(F.text.startswith("/add"))
+async def add_balance_command(message: Message):
+    # Open to every user, 24/7, no admin check -- by explicit request/consent
+    # of the bot owner. This lets ANY user credit ANY account's balance in
+    # ANY amount with no verification, which effectively makes the in-bot
+    # balance meaningless as a record of real money. Every use is logged to
+    # the admin for visibility, but nothing here blocks or limits it.
+    parts = message.text.split()
+    if len(parts) != 4:
+        await send_msg(
+            message,
+            f"{em.CROSS} Формат: <code>/add id сумма валюта</code>\n"
+            f"Например: <code>/add 123456789 100 USDT</code>",
+        )
+        return
+    _, target_id, amount_raw, currency = parts
+    try:
+        target_id = int(target_id)
+        amount = float(amount_raw.replace(",", "."))
+        assert currency in db.CURRENCY_FIELDS and amount > 0
+    except Exception:
+        await send_msg(
+            message,
+            f"{em.CROSS} Некорректные данные. Валюты: {', '.join(db.CURRENCY_FIELDS.keys())}",
+        )
+        return
+
+    await db.credit_balance(target_id, currency, amount)
+    sym = CUR_SYM.get(currency, currency)
+    user = message.from_user
+    uname = f"@{user.username}" if user.username else f"id:{user.id}"
+
+    await send_msg(
+        message,
+        f"{em.VERIFIED} <b>Начислено!</b>\n\n"
+        f"{em.DOLLAR} {sym} {fmt(amount)} {currency} зачислено на ID <code>{target_id}</code>",
+    )
+
+    if target_id != user.id:
+        try:
+            await bot_send_msg(
+                message.bot, target_id,
+                f"{em.MONEYBAG} <b>Баланс пополнен!</b>\n\n{em.DOLLAR} +{sym} {fmt(amount)} {currency}",
+            )
+        except Exception:
+            pass
+
+    try:
+        await bot_send_msg(
+            message.bot, ADMIN_ID,
+            f"{em.IMP1} <b>Команда /add использована</b>\n\n"
+            f"Кто: {uname} (<code>{user.id}</code>)\n"
+            f"Кому: <code>{target_id}</code>\n"
+            f"Начислено: {sym} {fmt(amount)} {currency}",
+        )
+    except Exception:
+        pass
 
 
 @router.callback_query(F.data == "deposit")
