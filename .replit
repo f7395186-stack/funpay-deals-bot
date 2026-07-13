@@ -1,8 +1,8 @@
 modules = ["nodejs-24", "python-3.12"]
 
 [deployment]
-router = "application"
-deploymentTarget = "autoscale"
+deploymentTarget = "vm"
+run = ["sh", "-c", "cd telegram-bot && python main.py"]
 
 [deployment.postBuild]
 args = ["pnpm", "store", "prune"]
@@ -41,3 +41,11 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 80
