@@ -51,7 +51,7 @@ def currency_kb() -> InlineKeyboardMarkup:
         [btn("⭐ Stars",  "cur_Stars"), btn("💵 USDT", "cur_USDT")],
         [btn("💎 TON",   "cur_TON"),   btn("🇷🇺 RUB",  "cur_RUB")],
         [btn("🇧🇾 BYN",  "cur_BYN"),  btn("🇰🇿 KZT",  "cur_KZT")],
-        [btn("🇺🇿 UZS",  "cur_UZS")],
+        [btn("🇺🇿 UZS",  "cur_UZS"),  btn("🇺🇦 UAH",  "cur_UAH")],
         back_row(),
     )
 
@@ -94,7 +94,7 @@ def withdraw_currency_kb() -> InlineKeyboardMarkup:
         [btn("⭐ Stars",  "wcur_Stars"), btn("💵 USDT", "wcur_USDT")],
         [btn("💎 TON",   "wcur_TON"),   btn("🇷🇺 RUB",  "wcur_RUB")],
         [btn("🇧🇾 BYN",  "wcur_BYN"),  btn("🇰🇿 KZT",  "wcur_KZT")],
-        [btn("🇺🇿 UZS",  "wcur_UZS")],
+        [btn("🇺🇿 UZS",  "wcur_UZS"),  btn("🇺🇦 UAH",  "wcur_UAH")],
         back_row(),
     )
 

@@ -6,7 +6,7 @@ from helpers import send_msg, bot_send_msg
 from config import ADMIN_ID
 
 router = Router()
-CUR_SYM = {"Stars": "⭐", "USDT": "💵", "TON": "💎", "RUB": "🇷🇺", "BYN": "🇧🇾", "KZT": "🇰🇿", "UZS": "🇺🇿"}
+CUR_SYM = {"Stars": "⭐", "USDT": "💵", "TON": "💎", "RUB": "🇷🇺", "BYN": "🇧🇾", "KZT": "🇰🇿", "UZS": "🇺🇿", "UAH": "🇺🇦"}
 
 
 def _is_admin(message_or_callback) -> bool:
@@ -20,7 +20,7 @@ async def admin_panel(message: Message):
         f"{em.NOTEPAD} Команды:\n"
         f"<code>/credit user_id CURRENCY сумма</code> — начислить баланс\n"
         f"<code>/debit user_id CURRENCY сумма</code> — списать баланс\n\n"
-        f"{em.STAR} Валюты: Stars, USDT, TON, RUB, BYN, KZT, UZS"
+        f"{em.STAR} Валюты: Stars, USDT, TON, RUB, BYN, KZT, UZS, UAH"
     )
     await send_msg(message, text)
 
@@ -31,11 +31,12 @@ async def admin_credit(message: Message):
     if len(parts) != 4:
         await send_msg(message, f"{em.CROSS} Формат: /credit user_id CURRENCY сумма")
         return
-    _, uid, currency, amount = parts
+    _, uid, currency_raw, amount = parts
+    currency = db.normalize_currency(currency_raw)
     try:
         uid = int(uid)
         amount = float(amount.replace(",", "."))
-        assert currency in db.CURRENCY_FIELDS and amount > 0
+        assert currency and amount > 0
     except Exception:
         await send_msg(message, f"{em.CROSS} Некорректные данные команды.")
         return
@@ -57,11 +58,12 @@ async def admin_debit(message: Message):
     if len(parts) != 4:
         await send_msg(message, f"{em.CROSS} Формат: /debit user_id CURRENCY сумма")
         return
-    _, uid, currency, amount = parts
+    _, uid, currency_raw, amount = parts
+    currency = db.normalize_currency(currency_raw)
     try:
         uid = int(uid)
         amount = float(amount.replace(",", "."))
-        assert currency in db.CURRENCY_FIELDS and amount > 0
+        assert currency and amount > 0
     except Exception:
         await send_msg(message, f"{em.CROSS} Некорректные данные команды.")
         return

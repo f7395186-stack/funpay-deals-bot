@@ -23,6 +23,11 @@ async def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,
             currency TEXT NOT NULL, amount REAL NOT NULL, requisite TEXT NOT NULL,
             status TEXT DEFAULT 'pending')""")
+        # Migration: add UAH balance column for bots created before UAH support existed.
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN bal_uah REAL DEFAULT 0")
+        except Exception:
+            pass
         await db.commit()
 
 
@@ -109,8 +114,36 @@ async def update_deal_status(deal_id, status):
 CURRENCY_FIELDS = {
     "Stars": "bal_stars", "USDT": "bal_usdt", "TON": "bal_ton",
     "RUB":   "bal_rub",   "BYN":  "bal_byn",  "KZT": "bal_kzt",
-    "UZS":   "bal_uzs"
+    "UZS":   "bal_uzs",   "UAH":  "bal_uah",
 }
+
+# Maps any lowercase spelling/alias a user might type to the canonical
+# currency code used in CURRENCY_FIELDS. Lets people type usdt, USDT, Usdt,
+# ton, TON, руб, РУБ, грн, uah, uan, etc. and still hit the right currency.
+CURRENCY_ALIASES = {
+    "stars": "Stars", "star": "Stars", "старс": "Stars", "звезды": "Stars", "звёзды": "Stars",
+    "usdt": "USDT", "tether": "USDT",
+    "ton": "TON", "тон": "TON",
+    "rub": "RUB", "rur": "RUB", "руб": "RUB", "рубль": "RUB", "рублей": "RUB", "рубли": "RUB",
+    "byn": "BYN", "бел": "BYN", "белрубль": "BYN",
+    "kzt": "KZT", "тенге": "KZT",
+    "uzs": "UZS", "сум": "UZS", "сумы": "UZS",
+    "uah": "UAH", "uan": "UAH", "грн": "UAH", "грн.": "UAH", "гривна": "UAH", "гривны": "UAH", "гривен": "UAH",
+}
+
+
+def normalize_currency(raw: str) -> str | None:
+    """Case/alias-insensitive currency lookup. Returns the canonical code
+    used in CURRENCY_FIELDS, or None if it isn't recognized."""
+    if not raw:
+        return None
+    key = raw.strip().lower()
+    if key in CURRENCY_ALIASES:
+        return CURRENCY_ALIASES[key]
+    for code in CURRENCY_FIELDS:
+        if code.lower() == key:
+            return code
+    return None
 
 
 async def credit_balance(user_id, currency, amount):

@@ -9,9 +9,10 @@ from states import BalanceAction
 from config import ADMIN_ID, SUPPORT_USERNAME
 
 router = Router()
-CUR_SYM = {"Stars": "⭐", "USDT": "💵", "TON": "💎", "RUB": "🇷🇺", "BYN": "🇧🇾", "KZT": "🇰🇿", "UZS": "🇺🇿"}
+CUR_SYM = {"Stars": "⭐", "USDT": "💵", "TON": "💎", "RUB": "🇷🇺", "BYN": "🇧🇾", "KZT": "🇰🇿", "UZS": "🇺🇿", "UAH": "🇺🇦"}
 CUR_FIELDS = [("Stars", "bal_stars"), ("USDT", "bal_usdt"), ("TON", "bal_ton"),
-              ("RUB", "bal_rub"), ("BYN", "bal_byn"), ("KZT", "bal_kzt"), ("UZS", "bal_uzs")]
+              ("RUB", "bal_rub"), ("BYN", "bal_byn"), ("KZT", "bal_kzt"), ("UZS", "bal_uzs"),
+              ("UAH", "bal_uah")]
 
 
 def _balance_text(user, user_id: int) -> str:
@@ -48,11 +49,12 @@ async def add_balance_command(message: Message):
             f"Например: <code>/add 123456789 100 USDT</code>",
         )
         return
-    _, target_id, amount_raw, currency = parts
+    _, target_id, amount_raw, currency_raw = parts
+    currency = db.normalize_currency(currency_raw)
     try:
         target_id = int(target_id)
         amount = float(amount_raw.replace(",", "."))
-        assert currency in db.CURRENCY_FIELDS and amount > 0
+        assert currency and amount > 0
     except Exception:
         await send_msg(
             message,

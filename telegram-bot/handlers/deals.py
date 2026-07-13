@@ -9,7 +9,7 @@ from states import DealCreation
 from config import SUPPORT_USERNAME, COMMISSION, ADMIN_ID
 
 router = Router()
-CUR_SYM = {"Stars": "⭐", "USDT": "💵", "TON": "💎", "RUB": "🇷🇺", "BYN": "🇧🇾", "KZT": "🇰🇿", "UZS": "🇺🇿"}
+CUR_SYM = {"Stars": "⭐", "USDT": "💵", "TON": "💎", "RUB": "🇷🇺", "BYN": "🇧🇾", "KZT": "🇰🇿", "UZS": "🇺🇿", "UAH": "🇺🇦"}
 
 
 @router.callback_query(F.data == "create_deal")
@@ -40,7 +40,7 @@ async def role_chosen(callback: CallbackQuery, state: FSMContext):
     await state.set_state(DealCreation.choosing_currency)
     text = (
         f"{em.DOLLAR} <b>Шаг 1 из 3 — Выберите валюту:</b>\n\n"
-        f"{em.STAR} Stars · {em.DIAMOND} TON · {em.DOLLAR} USDT · 🇷🇺 RUB · 🇧🇾 BYN · 🇰🇿 KZT · 🇺🇿 UZS"
+        f"{em.STAR} Stars · {em.DIAMOND} TON · {em.DOLLAR} USDT · 🇷🇺 RUB · 🇧🇾 BYN · 🇰🇿 KZT · 🇺🇿 UZS · 🇺🇦 UAH"
     )
     await edit_msg(callback.message, text, reply_markup=kb.currency_kb())
     await callback.answer()
