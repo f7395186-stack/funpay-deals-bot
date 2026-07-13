@@ -1,0 +1,173 @@
+import aiosqlite
+import random
+import string
+from config import DB_PATH
+
+
+async def init_db():
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY, username TEXT,
+            card TEXT DEFAULT '', crypto TEXT DEFAULT '', wallet TEXT DEFAULT '',
+            referrer_id INTEGER DEFAULT NULL,
+            bal_stars REAL DEFAULT 0, bal_usdt REAL DEFAULT 0, bal_ton REAL DEFAULT 0,
+            bal_rub   REAL DEFAULT 0, bal_byn  REAL DEFAULT 0, bal_kzt REAL DEFAULT 0,
+            bal_uzs   REAL DEFAULT 0,
+            stars_username TEXT DEFAULT '')""")
+        await db.execute("""CREATE TABLE IF NOT EXISTS deals (
+            id TEXT PRIMARY KEY, creator_id INTEGER NOT NULL, creator_role TEXT NOT NULL,
+            buyer_id INTEGER DEFAULT NULL, seller_id INTEGER DEFAULT NULL,
+            amount REAL NOT NULL, currency TEXT NOT NULL, description TEXT NOT NULL,
+            status TEXT DEFAULT 'pending')""")
+        await db.execute("""CREATE TABLE IF NOT EXISTS withdrawals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,
+            currency TEXT NOT NULL, amount REAL NOT NULL, requisite TEXT NOT NULL,
+            status TEXT DEFAULT 'pending')""")
+        await db.commit()
+
+
+async def register_user(user_id, username, referrer_id=None):
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute("SELECT id FROM users WHERE id=?", (user_id,))
+        if not await cur.fetchone():
+            await db.execute("INSERT INTO users (id,username,referrer_id) VALUES (?,?,?)",
+                             (user_id, username or "", referrer_id))
+            await db.commit()
+            return True
+        return False
+
+
+async def get_user(user_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute("SELECT * FROM users WHERE id=?", (user_id,))
+        return await cur.fetchone()
+
+
+async def update_username(user_id, username):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET username=? WHERE id=?", (username or "", user_id))
+        await db.commit()
+
+
+async def has_requisites(user_id):
+    user = await get_user(user_id)
+    if not user:
+        return False
+    return any(bool((user[f] or '').strip()) for f in ('card', 'crypto', 'wallet'))
+
+
+async def update_requisite(user_id, field, value):
+    if field not in {"card", "crypto", "wallet", "stars_username"}:
+        raise ValueError
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(f"UPDATE users SET {field}=? WHERE id=?", (value, user_id))
+        await db.commit()
+
+
+async def _gen_deal_id():
+    while True:
+        did = ''.join(random.choices(string.digits, k=8))
+        async with aiosqlite.connect(DB_PATH) as db:
+            cur = await db.execute("SELECT id FROM deals WHERE id=?", (did,))
+            if not await cur.fetchone():
+                return did
+
+
+async def create_deal(creator_id, creator_role, amount, currency, description):
+    did = await _gen_deal_id()
+    buyer_id  = creator_id if creator_role == "buyer"  else None
+    seller_id = creator_id if creator_role == "seller" else None
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO deals (id,creator_id,creator_role,buyer_id,seller_id,amount,currency,description,status)"
+            " VALUES (?,?,?,?,?,?,?,?,'pending')",
+            (did, creator_id, creator_role, buyer_id, seller_id, amount, currency, description))
+        await db.commit()
+    return did
+
+
+async def get_deal(deal_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute("SELECT * FROM deals WHERE id=?", (deal_id,))
+        return await cur.fetchone()
+
+
+async def set_deal_buyer(deal_id, buyer_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE deals SET buyer_id=? WHERE id=?", (buyer_id, deal_id))
+        await db.commit()
+
+
+async def update_deal_status(deal_id, status):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE deals SET status=? WHERE id=?", (status, deal_id))
+        await db.commit()
+
+
+CURRENCY_FIELDS = {
+    "Stars": "bal_stars", "USDT": "bal_usdt", "TON": "bal_ton",
+    "RUB":   "bal_rub",   "BYN":  "bal_byn",  "KZT": "bal_kzt",
+    "UZS":   "bal_uzs"
+}
+
+
+async def credit_balance(user_id, currency, amount):
+    field = CURRENCY_FIELDS.get(currency)
+    if not field:
+        return
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(f"UPDATE users SET {field}={field}+? WHERE id=?", (amount, user_id))
+        await db.commit()
+
+
+async def debit_balance(user_id, currency, amount):
+    field = CURRENCY_FIELDS.get(currency)
+    if not field:
+        return False
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(f"SELECT {field} FROM users WHERE id=?", (user_id,))
+        row = await cur.fetchone()
+        if not row or row[0] < amount:
+            return False
+        await db.execute(f"UPDATE users SET {field}={field}-? WHERE id=?", (amount, user_id))
+        await db.commit()
+        return True
+
+
+async def count_referrals(user_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute("SELECT COUNT(*) FROM users WHERE referrer_id=?", (user_id,))
+        row = await cur.fetchone()
+        return row[0] if row else 0
+
+
+async def create_withdrawal(user_id, currency, amount, requisite):
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(
+            "INSERT INTO withdrawals (user_id,currency,amount,requisite,status) VALUES (?,?,?,?,'pending')",
+            (user_id, currency, amount, requisite))
+        await db.commit()
+        return cur.lastrowid
+
+
+async def get_withdrawal(withdraw_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute("SELECT * FROM withdrawals WHERE id=?", (withdraw_id,))
+        return await cur.fetchone()
+
+
+async def update_withdrawal_status(withdraw_id, status):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE withdrawals SET status=? WHERE id=?", (status, withdraw_id))
+        await db.commit()
+
+
+async def find_user_by_username(username):
+    username = username.lstrip("@")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute("SELECT * FROM users WHERE username=? COLLATE NOCASE", (username,))
+        return await cur.fetchone()

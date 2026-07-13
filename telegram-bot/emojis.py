@@ -1,0 +1,94 @@
+E_NUM_1      = "5382322671679708881"
+E_NUM_2      = "5381990043642502553"
+E_NUM_3      = "5381879959335738545"
+E_NUM_4      = "5382054253403577563"
+E_NUM_5      = "5391197405553107640"
+E_HANDSHAKE  = "5366230485783557962"
+E_MONEYBAG   = "5260427797557431116"
+E_STAR       = "5222039865197084254"
+E_BRIEFCASE  = "5303209807879093100"
+E_NOTEPAD    = "5251662946127336150"
+E_QUESTION   = "5350367217349311525"
+E_CHART      = "5319027450875753272"
+E_VERIFIED   = "5318906848194082898"
+E_IMP1       = "5319118169174981020"
+E_IMP2       = "5318892374154297120"
+E_IMP3       = "5321183030537106890"
+E_DOLLAR     = "5197434882321567830"
+E_RUBLE      = "5377746319601324795"
+E_BITCOIN    = "5379773896352355687"
+E_DIAMOND    = "5377620962390857342"
+E_CALC       = "5303214794336125778"
+E_TIMER      = "5382194935057372936"
+E_BAG        = "5301136335107536449"
+E_WALLET2    = "5341730708131976244"
+E_PENCIL     = "5344054710640872335"
+E_IMAGE      = "5420414478929924803"
+E_KEY        = "5422426310330852591"
+E_HOUSE      = "5418111684969536647"
+E_SHIELD     = "5902016123972358349"
+E_GRID       = "5895266423952904371"
+E_CHECK      = "5895514131896733546"
+E_CROSS      = "5893163582194978381"
+E_CLOCK      = "5893102202817352158"
+E_PHONE      = "5893297890117292323"
+E_SUITCASE   = "5893255507380014983"
+E_MONEY_USD  = "5893473283696759404"
+E_CARD       = "5902056028513505203"
+E_GEAR       = "5893161718179173515"
+E_CLOCK24    = "5893149782465057649"
+E_LIGHTNING  = "5893048571560726748"
+E_GIFT       = "5449161690029821203"
+E_CROWN      = "5449180777402886879"
+E_PEOPLE     = "5449162053445555556"
+
+
+def e(emoji_id: str, fallback: str) -> str:
+    """Wrap a fallback glyph in a <tg-emoji> span so Telegram renders the
+    custom (premium) animated emoji instead, while still degrading to the
+    plain unicode glyph for clients/renders that don't support it."""
+    return f'<tg-emoji emoji-id="{emoji_id}">{fallback}</tg-emoji>'
+
+
+SHIELD    = e(E_SHIELD,    "🛡")
+CHECK     = e(E_CHECK,     "✅")
+CROSS     = e(E_CROSS,     "❌")
+STAR      = e(E_STAR,      "⭐")
+MONEYBAG  = e(E_MONEYBAG,  "💰")
+DOLLAR    = e(E_DOLLAR,    "💵")
+BITCOIN   = e(E_BITCOIN,   "🪙")
+DIAMOND   = e(E_DIAMOND,   "💎")
+BRIEFCASE = e(E_BRIEFCASE, "💼")
+NOTEPAD   = e(E_NOTEPAD,   "📋")
+QUESTION  = e(E_QUESTION,  "❓")
+CHART     = e(E_CHART,     "📈")
+VERIFIED  = e(E_VERIFIED,  "✅")
+HANDSHAKE = e(E_HANDSHAKE, "🤝")
+GEAR      = e(E_GEAR,      "⚙️")
+CLOCK     = e(E_CLOCK,     "🕐")
+LIGHTNING = e(E_LIGHTNING, "⚡")
+WALLET    = e(E_WALLET2,   "👛")
+CARD      = e(E_CARD,      "💳")
+PHONE     = e(E_PHONE,     "📞")
+KEY       = e(E_KEY,       "🔑")
+HOUSE     = e(E_HOUSE,     "🏠")
+PENCIL    = e(E_PENCIL,    "✏️")
+SUITCASE  = e(E_SUITCASE,  "🧳")
+TIMER     = e(E_TIMER,     "⏱")
+CALC      = e(E_CALC,      "🔲")
+GRID      = e(E_GRID,      "▪️")
+BAG       = e(E_BAG,       "👜")
+NUM1      = e(E_NUM_1,     "1️⃣")
+NUM2      = e(E_NUM_2,     "2️⃣")
+NUM3      = e(E_NUM_3,     "3️⃣")
+NUM4      = e(E_NUM_4,     "4️⃣")
+NUM5      = e(E_NUM_5,     "5️⃣")
+IMP1      = e(E_IMP1,      "🔴")
+IMP2      = e(E_IMP2,      "🔴")
+IMP3      = e(E_IMP3,      "🔴")
+MONEY_USD = e(E_MONEY_USD, "💵")
+CLOCK24   = e(E_CLOCK24,   "🕰")
+IMAGE     = e(E_IMAGE,     "🖼")
+GIFT      = e(E_GIFT,      "🎁")
+CROWN     = e(E_CROWN,     "👑")
+PEOPLE    = e(E_PEOPLE,    "👥")

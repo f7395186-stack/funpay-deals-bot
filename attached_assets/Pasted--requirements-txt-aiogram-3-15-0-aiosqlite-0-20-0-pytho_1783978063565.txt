@@ -1,0 +1,750 @@
+# ==================== requirements.txt ====================
+aiogram==3.15.0
+aiosqlite==0.20.0
+python-dotenv==1.0.1
+
+
+# ==================== config.py ====================
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+BOT_TOKEN = os.getenv("BOT_TOKEN", "")
+SUPPORT_USERNAME = "@Funpay_Support_Deals"
+COMMISSION = 0.05
+DB_PATH = os.path.join(os.path.dirname(__file__), "funpay_deals.db")
+ADMIN_ID = 7908632313
+FUNPAY_URL = "https://funpay.com"
+
+
+# ==================== states.py ====================
+from aiogram.fsm.state import State, StatesGroup
+
+class DealCreation(StatesGroup):
+    choosing_role = State()
+    choosing_currency = State()
+    entering_amount = State()
+    entering_description = State()
+
+class RequisiteEdit(StatesGroup):
+    editing_card = State()
+    editing_crypto = State()
+    editing_wallet = State()
+    editing_stars = State()
+
+class BalanceAction(StatesGroup):
+    depositing = State()
+    withdrawing = State()
+    choosing_withdraw_currency = State()
+    entering_withdraw_amount = State()
+    entering_withdraw_requisite = State()
+
+class AdminBalance(StatesGroup):
+    pass
+
+
+# ==================== emojis.py ====================
+E_NUM_1      = "5382322671679708881"
+E_NUM_2      = "5381990043642502553"
+E_NUM_3      = "5381879959335738545"
+E_NUM_4      = "5382054253403577563"
+E_NUM_5      = "5391197405553107640"
+E_HANDSHAKE  = "5366230485783557962"
+E_MONEYBAG   = "5260427797557431116"
+E_STAR       = "5222039865197084254"
+E_BRIEFCASE  = "5303209807879093100"
+E_NOTEPAD    = "5251662946127336150"
+E_QUESTION   = "5350367217349311525"
+E_CHART      = "5319027450875753272"
+E_VERIFIED   = "5318906848194082898"
+E_IMP1       = "5319118169174981020"
+E_IMP2       = "5318892374154297120"
+E_IMP3       = "5321183030537106890"
+E_DOLLAR     = "5197434882321567830"
+E_RUBLE      = "5377746319601324795"
+E_BITCOIN    = "5379773896352355687"
+E_DIAMOND    = "5377620962390857342"
+E_CALC       = "5303214794336125778"
+E_TIMER      = "5382194935057372936"
+E_BAG        = "5301136335107536449"
+E_WALLET2    = "5341730708131976244"
+E_PENCIL     = "5344054710640872335"
+E_IMAGE      = "5420414478929924803"
+E_KEY        = "5422426310330852591"
+E_HOUSE      = "5418111684969536647"
+E_SHIELD     = "5902016123972358349"
+E_GRID       = "5895266423952904371"
+E_CHECK      = "5895514131896733546"
+E_CROSS      = "5893163582194978381"
+E_CLOCK      = "5893102202817352158"
+E_PHONE      = "5893297890117292323"
+E_SUITCASE   = "5893255507380014983"
+E_MONEY_USD  = "5893473283696759404"
+E_CARD       = "5902056028513505203"
+E_GEAR       = "5893161718179173515"
+E_CLOCK24    = "5893149782465057649"
+E_LIGHTNING  = "5893048571560726748"
+
+def e(emoji_id: str, fallback: str) -> str:
+    return f'<tg-emoji emoji-id="{emoji_id}">{fallback}</tg-emoji>'
+
+SHIELD    = e(E_SHIELD,    "🛡")
+CHECK     = e(E_CHECK,     "✅")
+CROSS     = e(E_CROSS,     "❌")
+STAR      = e(E_STAR,      "⭐")
+MONEYBAG  = e(E_MONEYBAG,  "💰")
+DOLLAR    = e(E_DOLLAR,    "💵")
+BITCOIN   = e(E_BITCOIN,   "🪙")
+DIAMOND   = e(E_DIAMOND,   "💎")
+BRIEFCASE = e(E_BRIEFCASE, "💼")
+NOTEPAD   = e(E_NOTEPAD,   "📋")
+QUESTION  = e(E_QUESTION,  "❓")
+CHART     = e(E_CHART,     "📈")
+VERIFIED  = e(E_VERIFIED,  "✅")
+HANDSHAKE = e(E_HANDSHAKE, "🤝")
+GEAR      = e(E_GEAR,      "⚙️")
+CLOCK     = e(E_CLOCK,     "🕐")
+LIGHTNING = e(E_LIGHTNING, "⚡")
+WALLET    = e(E_WALLET2,   "👛")
+CARD      = e(E_CARD,      "💳")
+PHONE     = e(E_PHONE,     "📞")
+KEY       = e(E_KEY,       "🔑")
+HOUSE     = e(E_HOUSE,     "🏠")
+PENCIL    = e(E_PENCIL,    "✏️")
+SUITCASE  = e(E_SUITCASE,  "🧳")
+TIMER     = e(E_TIMER,     "⏱")
+CALC      = e(E_CALC,      "🔲")
+GRID      = e(E_GRID,      "▪️")
+BAG       = e(E_BAG,       "👜")
+NUM1      = e(E_NUM_1,     "1️⃣")
+NUM2      = e(E_NUM_2,     "2️⃣")
+NUM3      = e(E_NUM_3,     "3️⃣")
+NUM4      = e(E_NUM_4,     "4️⃣")
+NUM5      = e(E_NUM_5,     "5️⃣")
+IMP1      = e(E_IMP1,      "🔴")
+IMP2      = e(E_IMP2,      "🔴")
+IMP3      = e(E_IMP3,      "🔴")
+MONEY_USD = e(E_MONEY_USD, "💵")
+CLOCK24   = e(E_CLOCK24,   "🕰")
+IMAGE     = e(E_IMAGE,     "🖼")
+
+
+# ==================== keyboards.py ====================
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from config import FUNPAY_URL
+
+def btn(text: str, callback: str) -> InlineKeyboardButton:
+    return InlineKeyboardButton(text=text, callback_data=callback)
+
+def btn_url(text: str, url: str) -> InlineKeyboardButton:
+    return InlineKeyboardButton(text=text, url=url)
+
+def kb(*rows) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=list(rows))
+
+def back_row():
+    return [btn("🏠 Главное меню", "main_menu")]
+
+def back_kb() -> InlineKeyboardMarkup:
+    return kb(back_row())
+
+def main_menu_kb() -> InlineKeyboardMarkup:
+    return kb(
+        [btn("🤝 Создать сделку", "create_deal"),  btn("💰 Баланс", "balance")],
+        [btn("👛 Реквизиты", "requisites"),          btn("🎁 Рефералы", "referrals")],
+        [btn("💎 F.A.Q", "faq"),                     btn_url("🌐 WEB маркет", FUNPAY_URL)],
+        [btn("⚡ Поддержка", "support")],
+    )
+
+def deal_role_kb() -> InlineKeyboardMarkup:
+    return kb(
+        [btn("🛒 Я — Покупатель", "role_buyer"), btn("💼 Я — Продавец", "role_seller")],
+        back_row(),
+    )
+
+def currency_kb() -> InlineKeyboardMarkup:
+    return kb(
+        [btn("⭐ Stars",  "cur_Stars"), btn("💵 USDT", "cur_USDT")],
+        [btn("💎 TON",   "cur_TON"),   btn("🇷🇺 RUB",  "cur_RUB")],
+        [btn("🇧🇾 BYN",  "cur_BYN"),  btn("🇰🇿 KZT",  "cur_KZT")],
+        [btn("🇺🇿 UZS",  "cur_UZS")],
+        back_row(),
+    )
+
+def cancel_kb() -> InlineKeyboardMarkup:
+    return kb([btn("❌ Отмена", "main_menu")])
+
+def attach_req_kb() -> InlineKeyboardMarkup:
+    return kb(
+        [btn("👛 Привязать реквизиты", "requisites")],
+        [btn("🤝 Создать сделку", "create_deal")],
+        back_row(),
+    )
+
+def pay_deal_kb(deal_id: str) -> InlineKeyboardMarkup:
+    return kb(
+        [btn("💳 Оплатить сделку", f"pay_deal_{deal_id}")],
+        back_row(),
+    )
+
+def confirm_kb(deal_id: str) -> InlineKeyboardMarkup:
+    return kb(
+        [btn("✅ Подтвердить получение товара", f"confirm_deal_{deal_id}")],
+        back_row(),
+    )
+
+def balance_kb() -> InlineKeyboardMarkup:
+    return kb(
+        [btn("➕ Пополнить", "deposit"), btn("💸 Вывести", "withdraw")],
+        back_row(),
+    )
+
+def withdraw_currency_kb() -> InlineKeyboardMarkup:
+    return kb(
+        [btn("⭐ Stars",  "wcur_Stars"), btn("💵 USDT", "wcur_USDT")],
+        [btn("💎 TON",   "wcur_TON"),   btn("🇷🇺 RUB",  "wcur_RUB")],
+        [btn("🇧🇾 BYN",  "wcur_BYN"),  btn("🇰🇿 KZT",  "wcur_KZT")],
+        [btn("🇺🇿 UZS",  "wcur_UZS")],
+        back_row(),
+    )
+
+def requisites_kb() -> InlineKeyboardMarkup:
+    return kb(
+        [btn("💳 Изменить карту",      "edit_card")],
+        [btn("🪙 Изменить крипту",     "edit_crypto")],
+        [btn("👛 Изменить кошелёк",    "edit_wallet")],
+        [btn("⭐ Юзернейм для Stars",  "edit_stars")],
+        [btn("🤝 Создать сделку",      "create_deal")],
+        back_row(),
+    )
+
+
+# ==================== database.py ====================
+import aiosqlite, random, string
+from config import DB_PATH
+
+async def init_db():
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY, username TEXT,
+            card TEXT DEFAULT '', crypto TEXT DEFAULT '', wallet TEXT DEFAULT '',
+            referrer_id INTEGER DEFAULT NULL,
+            bal_stars REAL DEFAULT 0, bal_usdt REAL DEFAULT 0, bal_ton REAL DEFAULT 0,
+            bal_rub   REAL DEFAULT 0, bal_byn  REAL DEFAULT 0, bal_kzt REAL DEFAULT 0,
+            bal_uzs   REAL DEFAULT 0,
+            stars_username TEXT DEFAULT '')""")
+        await db.execute("""CREATE TABLE IF NOT EXISTS deals (
+            id TEXT PRIMARY KEY, creator_id INTEGER NOT NULL, creator_role TEXT NOT NULL,
+            buyer_id INTEGER DEFAULT NULL, seller_id INTEGER DEFAULT NULL,
+            amount REAL NOT NULL, currency TEXT NOT NULL, description TEXT NOT NULL,
+            status TEXT DEFAULT 'pending')""")
+        await db.commit()
+
+async def register_user(user_id, username, referrer_id=None):
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute("SELECT id FROM users WHERE id=?", (user_id,))
+        if not await cur.fetchone():
+            await db.execute("INSERT INTO users (id,username,referrer_id) VALUES (?,?,?)",
+                             (user_id, username or "", referrer_id))
+            await db.commit()
+            return True
+        return False
+
+async def get_user(user_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute("SELECT * FROM users WHERE id=?", (user_id,))
+        return await cur.fetchone()
+
+async def update_username(user_id, username):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET username=? WHERE id=?", (username or "", user_id))
+        await db.commit()
+
+async def has_requisites(user_id):
+    user = await get_user(user_id)
+    if not user:
+        return False
+    return any(bool((user[f] or '').strip()) for f in ('card', 'crypto', 'wallet'))
+
+async def update_requisite(user_id, field, value):
+    if field not in {"card", "crypto", "wallet", "stars_username"}:
+        raise ValueError
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(f"UPDATE users SET {field}=? WHERE id=?", (value, user_id))
+        await db.commit()
+
+async def _gen_deal_id():
+    while True:
+        did = ''.join(random.choices(string.digits, k=8))
+        async with aiosqlite.connect(DB_PATH) as db:
+            cur = await db.execute("SELECT id FROM deals WHERE id=?", (did,))
+            if not await cur.fetchone():
+                return did
+
+async def create_deal(creator_id, creator_role, amount, currency, description):
+    did = await _gen_deal_id()
+    buyer_id  = creator_id if creator_role == "buyer"  else None
+    seller_id = creator_id if creator_role == "seller" else None
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT INTO deals (id,creator_id,creator_role,buyer_id,seller_id,amount,currency,description,status)"
+            " VALUES (?,?,?,?,?,?,?,?,'pending')",
+            (did, creator_id, creator_role, buyer_id, seller_id, amount, currency, description))
+        await db.commit()
+    return did
+
+async def get_deal(deal_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute("SELECT * FROM deals WHERE id=?", (deal_id,))
+        return await cur.fetchone()
+
+async def set_deal_buyer(deal_id, buyer_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE deals SET buyer_id=? WHERE id=?", (buyer_id, deal_id))
+        await db.commit()
+
+async def update_deal_status(deal_id, status):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE deals SET status=? WHERE id=?", (status, deal_id))
+        await db.commit()
+
+CURRENCY_FIELDS = {
+    "Stars": "bal_stars", "USDT": "bal_usdt", "TON": "bal_ton",
+    "RUB":   "bal_rub",   "BYN":  "bal_byn",  "KZT": "bal_kzt",
+    "UZS":   "bal_uzs"
+}
+
+async def credit_balance(user_id, currency, amount):
+    field = CURRENCY_FIELDS.get(currency)
+    if not field:
+        return
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(f"UPDATE users SET {field}={field}+? WHERE id=?", (amount, user_id))
+        await db.commit()
+
+async def debit_balance(user_id, currency, amount):
+    field = CURRENCY_FIELDS.get(currency)
+    if not field:
+        return False
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute(f"SELECT {field} FROM users WHERE id=?", (user_id,))
+        row = await cur.fetchone()
+        if not row or row[0] < amount:
+            return False
+        await db.execute(f"UPDATE users SET {field}={field}-? WHERE id=?", (amount, user_id))
+        await db.commit()
+        return True
+
+async def count_referrals(user_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute("SELECT COUNT(*) FROM users WHERE referrer_id=?", (user_id,))
+        row = await cur.fetchone()
+        return row[0] if row else 0
+
+
+# ==================== helpers.py ====================
+import os
+from aiogram import Bot
+from aiogram.types import Message, FSInputFile, InputMediaPhoto
+
+PHOTO_PATH = os.path.join(os.path.dirname(__file__), "funpay_banner.jpg")
+_PHOTO_FILE_ID: str | None = None
+
+def _get_photo():
+    global _PHOTO_FILE_ID
+    if _PHOTO_FILE_ID:
+        return _PHOTO_FILE_ID
+    return FSInputFile(PHOTO_PATH)
+
+def _cache(msg: Message):
+    global _PHOTO_FILE_ID
+    if not _PHOTO_FILE_ID and msg and msg.photo:
+        _PHOTO_FILE_ID = msg.photo[-1].file_id
+
+async def send_msg(target: Message, text: str, reply_markup=None) -> Message:
+    sent = await target.answer_photo(
+        photo=_get_photo(),
+        caption=text,
+        reply_markup=reply_markup,
+        parse_mode="HTML",
+    )
+    _cache(sent)
+    return sent
+
+async def edit_msg(message: Message, text: str, reply_markup=None):
+    try:
+        if message.photo or message.document or message.video or message.animation:
+            await message.edit_caption(
+                caption=text,
+                reply_markup=reply_markup,
+                parse_mode="HTML",
+            )
+        else:
+            await message.edit_media(
+                InputMediaPhoto(media=_get_photo(), caption=text, parse_mode="HTML"),
+                reply_markup=reply_markup,
+            )
+    except Exception:
+        try:
+            await message.delete()
+        except Exception:
+            pass
+        sent = await message.answer_photo(
+            photo=_get_photo(),
+            caption=text,
+            reply_markup=reply_markup,
+            parse_mode="HTML",
+        )
+        _cache(sent)
+
+def fmt(val: float) -> str:
+    s = f"{val:,.10f}".rstrip("0")
+    return s if not s.endswith(".") else s + "0"
+
+async def bot_send_msg(bot: Bot, chat_id: int, text: str, reply_markup=None) -> Message:
+    sent = await bot.send_photo(
+        chat_id=chat_id,
+        photo=_get_photo(),
+        caption=text,
+        reply_markup=reply_markup,
+        parse_mode="HTML",
+    )
+    _cache(sent)
+    return sent
+
+
+# ==================== main.py ====================
+import asyncio, logging, sys, os
+sys.path.insert(0, os.path.dirname(__file__))
+
+from aiogram import Bot, Dispatcher
+from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
+from aiogram.fsm.storage.memory import MemoryStorage
+from config import BOT_TOKEN
+import database as db
+from handlers import start, deals, balance, requisites, referrals, admin
+
+async def main():
+    if not BOT_TOKEN:
+        logging.critical("BOT_TOKEN не задан!")
+        return
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    await db.init_db()
+    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    dp = Dispatcher(storage=MemoryStorage())
+    dp.include_router(admin.router)
+    dp.include_router(start.router)
+    dp.include_router(deals.router)
+    dp.include_router(balance.router)
+    dp.include_router(requisites.router)
+    dp.include_router(referrals.router)
+    logging.info("Funpay Deals Bot запущен...")
+    await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+
+# ==================== handlers/__init__.py ====================
+# (пустой файл)
+
+
+# ==================== handlers/start.py ====================
+from aiogram import Router, F
+from aiogram.filters import CommandStart
+from aiogram.types import Message, CallbackQuery
+from aiogram.fsm.context import FSMContext
+import database as db
+import keyboards as kb
+import emojis as em
+from helpers import send_msg, edit_msg, bot_send_msg
+from config import ADMIN_ID
+
+router = Router()
+
+WELCOME = (
+    f"{em.STAR} <b>Добро пожаловать в Funpay Deals Bot</b> — "
+    f"ваш надёжный сервис безопасных сделок! {em.SHIELD}\n\n"
+    f"{em.LIGHTNING} Автоматизированные сделки\n"
+    f"{em.DIAMOND} Поддержка 7 валют\n"
+    f"{em.CHART} Реферальная система\n"
+    f"{em.WALLET} Вывод в любой валюте\n"
+    f"{em.CLOCK24} Поддержка 24/7\n\n"
+    f"{em.HANDSHAKE} <b>Выберите раздел ниже!</b>"
+)
+
+@router.message(CommandStart())
+async def cmd_start(message: Message, state: FSMContext):
+    await state.clear()
+    user = message.from_user
+    args = message.text.split(maxsplit=1)
+    param = args[1] if len(args) > 1 else ""
+    referrer_id = deal_id = None
+
+    if param.startswith("ref"):
+        try:
+            referrer_id = int(param[3:])
+            if referrer_id == user.id:
+                referrer_id = None
+        except ValueError:
+            pass
+    elif param.startswith("deal_"):
+        deal_id = param[5:]
+
+    is_new = await db.register_user(user.id, user.username, referrer_id)
+    if not is_new:
+        await db.update_username(user.id, user.username)
+
+    if is_new:
+        uname = f"@{user.username}" if user.username else f"id:{user.id}"
+        try:
+            await bot_send_msg(
+                message.bot, ADMIN_ID,
+                f"👤 <b>Новый пользователь!</b>\n\n"
+                f"Имя: {user.full_name}\n"
+                f"Username: {uname}\n"
+                f"ID: <code>{user.id}</code>"
+            )
+        except Exception:
+            pass
+
+    if deal_id:
+        deal = await db.get_deal(deal_id)
+        if deal and deal["status"] == "pending" and deal["creator_id"] != user.id:
+            from handlers.deals import show_deal_payment
+            await show_deal_payment(message, deal_id)
+            return
+
+    await send_msg(message, WELCOME, reply_markup=kb.main_menu_kb())
+
+@router.callback_query(F.data == "main_menu")
+async def back_to_main(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    await edit_msg(callback.message, WELCOME, reply_markup=kb.main_menu_kb())
+    await callback.answer()
+
+@router.callback_query(F.data == "faq")
+async def faq_handler(callback: CallbackQuery):
+    text = (
+        f"{em.SHIELD} <b>F.A.Q — Часто задаваемые вопросы</b>\n\n"
+        f"{em.CHECK} <b>Как работает гарант?</b>\n"
+        "Покупатель платит — деньги замораживаются. "
+        "Продавец передаёт товар через @Funpay_Support_Deals. "
+        "После подтверждения — деньги у продавца.\n\n"
+        f"{em.DOLLAR} <b>Комиссия:</b> 5%\n\n"
+        f"{em.STAR} <b>Валюты:</b> Stars · USDT · TON · RUB · BYN · KZT · UZS\n\n"
+        f"{em.WALLET} <b>Вывод:</b> «Баланс» → «Вывести»\n\n"
+        f"{em.PHONE} Поддержка: <b>@Funpay_Support_Deals</b>"
+    )
+    await edit_msg(callback.message, text, reply_markup=kb.back_kb())
+    await callback.answer()
+
+@router.callback_query(F.data == "support")
+async def support_handler(callback: CallbackQuery):
+    text = (
+        f"{em.GEAR} <b>Поддержка Funpay Deals</b>\n\n"
+        f"{em.PHONE} Аккаунт: <b>@Funpay_Support_Deals</b>\n\n"
+        f"{em.CLOCK} Время ответа: до 15 минут\n"
+        f"{em.SHIELD} Работаем 24/7 без выходных."
+    )
+    await edit_msg(callback.message, text, reply_markup=kb.back_kb())
+    await callback.answer()
+
+
+# ==================== handlers/deals.py ====================
+from aiogram import Router, F
+from aiogram.types import Message, CallbackQuery
+from aiogram.fsm.context import FSMContext
+import database as db
+import keyboards as kb
+import emojis as em
+from helpers import send_msg, edit_msg, bot_send_msg, fmt
+from states import DealCreation
+from config import SUPPORT_USERNAME, COMMISSION, ADMIN_ID
+
+router = Router()
+CUR_SYM = {"Stars": "⭐", "USDT": "💵", "TON": "💎", "RUB": "🇷🇺", "BYN": "🇧🇾", "KZT": "🇰🇿", "UZS": "🇺🇿"}
+
+@router.callback_query(F.data == "create_deal")
+async def create_deal_start(callback: CallbackQuery, state: FSMContext):
+    await state.set_state(DealCreation.choosing_role)
+    text = (
+        f"{em.HANDSHAKE} <b>Создание сделки</b>\n\n"
+        f"{em.QUESTION} Кем вы выступаете в этой сделке?"
+    )
+    await edit_msg(callback.message, text, reply_markup=kb.deal_role_kb())
+    await callback.answer()
+
+@router.callback_query(DealCreation.choosing_role, F.data.in_({"role_buyer", "role_seller"}))
+async def role_chosen(callback: CallbackQuery, state: FSMContext):
+    role = "buyer" if callback.data == "role_buyer" else "seller"
+    if role == "seller" and not await db.has_requisites(callback.from_user.id):
+        await state.clear()
+        text = (
+            f"{em.IMP1}{em.IMP2}{em.IMP3} <b>Ошибка: не привязаны реквизиты!</b>\n\n"
+            f"{em.SHIELD} Мы должны знать, куда переводить деньги.\n"
+            f"{em.KEY} Привяжите реквизиты прямо сейчас."
+        )
+        await edit_msg(callback.message, text, reply_markup=kb.attach_req_kb())
+        await callback.answer()
+        return
+    await state.update_data(role=role)
+    await state.set_state(DealCreation.choosing_currency)
+    text = (
+        f"{em.DOLLAR} <b>Шаг 1 из 3 — Выберите валюту:</b>\n\n"
+        f"{em.STAR} Stars · {em.DIAMOND} TON · {em.DOLLAR} USDT · 🇷🇺 RUB · 🇧🇾 BYN · 🇰🇿 KZT · 🇺🇿 UZS"
+    )
+    await edit_msg(callback.message, text, reply_markup=kb.currency_kb())
+    await callback.answer()
+
+@router.callback_query(DealCreation.choosing_currency, F.data.startswith("cur_"))
+async def currency_chosen(callback: CallbackQuery, state: FSMContext):
+    currency = callback.data[4:]
+    await state.update_data(currency=currency)
+    await state.set_state(DealCreation.entering_amount)
+    text = (
+        f"{em.CALC} <b>Шаг 2 из 3 — Введите сумму</b>\n\n"
+        f"{em.TIMER} Валюта: {CUR_SYM.get(currency, currency)} <b>{currency}</b>\n\n"
+        f"{em.PENCIL} Введите число, например: <code>500</code>"
+    )
+    await edit_msg(callback.message, text, reply_markup=kb.cancel_kb())
+    await callback.answer()
+
+@router.message(DealCreation.entering_amount)
+async def amount_entered(message: Message, state: FSMContext):
+    try:
+        amount = float(message.text.replace(",", "."))
+        assert amount > 0
+    except Exception:
+        await send_msg(message, f"{em.CROSS} <b>Ошибка:</b> Введите число больше нуля.",
+                       reply_markup=kb.cancel_kb())
+        return
+    await state.update_data(amount=amount)
+    await state.set_state(DealCreation.entering_description)
+    text = (
+        f"{em.NOTEPAD} <b>Шаг 3 из 3 — Опишите товар / услугу</b>\n\n"
+        f"{em.PENCIL} Пример: <i>Аккаунт Minecraft Premium, 2024</i>"
+    )
+    await send_msg(message, text, reply_markup=kb.cancel_kb())
+
+@router.message(DealCreation.entering_description)
+async def description_entered(message: Message, state: FSMContext):
+    desc = message.text.strip()
+    if len(desc) < 3:
+        await send_msg(message, f"{em.CROSS} Описание слишком короткое. Минимум 3 символа.",
+                       reply_markup=kb.cancel_kb())
+        return
+    data = await state.get_data()
+    did  = await db.create_deal(message.from_user.id, data["role"], data["amount"], data["currency"], desc)
+    await state.clear()
+    me   = await message.bot.get_me()
+    link = f"https://t.me/{me.username}?start=deal_{did}"
+    sym  = CUR_SYM.get(data["currency"], data["currency"])
+    text = (
+        f"{em.VERIFIED} <b>Сделка создана!</b>\n\n"
+        f"{em.GRID} <b>ID:</b> <code>{did}</code>\n"
+        f"{em.DOLLAR} <b>Сумма:</b> {sym} {fmt(data['amount'])} {data['currency']}\n"
+        f"{em.BRIEFCASE} <b>Описание:</b> {desc}\n"
+        f"{em.CLOCK} <b>Статус:</b> Ожидание оплаты\n\n"
+        f"{em.LIGHTNING} <b>Ссылка для покупателя:</b>\n<code>{link}</code>\n\n"
+        f"{em.SHIELD} Отправьте эту ссылку покупателю."
+    )
+    await send_msg(message, text, reply_markup=kb.back_kb())
+
+    user = message.from_user
+    uname = f"@{user.username}" if user.username else f"id:{user.id}"
+    try:
+        await bot_send_msg(
+            message.bot, ADMIN_ID,
+            f"📋 <b>Новая сделка создана!</b>\n\n"
+            f"ID сделки: <code>{did}</code>\n"
+            f"Создал: {uname} (<code>{user.id}</code>)\n"
+            f"Роль: {'Продавец' if data['role'] == 'seller' else 'Покупатель'}\n"
+            f"Сумма: {sym} {fmt(data['amount'])} {data['currency']}\n"
+            f"Товар: {desc}\n\n"
+            f"🔗 <b>Ссылка сделки:</b>\n{link}"
+        )
+    except Exception:
+        pass
+
+async def show_deal_payment(message: Message, deal_id: str):
+    deal = await db.get_deal(deal_id)
+    if not deal:
+        await send_msg(message, f"{em.CROSS} Сделка не найдена.", reply_markup=kb.back_kb())
+        return
+    if deal["status"] != "pending":
+        await send_msg(message, f"{em.CROSS} Сделка недоступна (статус: {deal['status']}).",
+                       reply_markup=kb.back_kb())
+        return
+    sym = CUR_SYM.get(deal["currency"], deal["currency"])
+    text = (
+        f"{em.SHIELD} <b>Сделка #{deal_id}</b>\n\n"
+        f"{em.BRIEFCASE} <b>Описание:</b> {deal['description']}\n"
+        f"{em.DOLLAR} <b>Сумма:</b> {sym} {fmt(deal['amount'])} {deal['currency']}\n"
+        f"{em.CLOCK} <b>Статус:</b> Ожидание оплаты\n\n"
+        f"{em.HANDSHAKE} Нажмите кнопку ниже для оплаты."
+    )
+    await send_msg(message, text, reply_markup=kb.pay_deal_kb(deal_id))
+
+@router.callback_query(F.data.startswith("pay_deal_"))
+async def pay_deal(callback: CallbackQuery):
+    deal_id = callback.data[9:]
+    deal    = await db.get_deal(deal_id)
+    if not deal:
+        await callback.answer("❌ Сделка не найдена.", show_alert=True)
+        return
+    if deal["status"] != "pending":
+        await callback.answer("❌ Сделка уже оплачена.", show_alert=True)
+        return
+    if deal["creator_id"] == callback.from_user.id:
+        await callback.answer("❌ Нельзя оплатить свою сделку.", show_alert=True)
+        return
+    buyer_id = callback.from_user.id
+    await db.set_deal_buyer(deal_id, buyer_id)
+    await db.update_deal_status(deal_id, "paid")
+    sym = CUR_SYM.get(deal["currency"], deal["currency"])
+    text = (
+        f"{em.VERIFIED} <b>Оплата принята!</b>\n\n"
+        f"{em.SHIELD} {sym} {fmt(deal['amount'])} {deal['currency']} заморожено.\n\n"
+        f"{em.CLOCK} Ожидайте, пока продавец передаст товар через <b>{SUPPORT_USERNAME}</b>"
+    )
+    await edit_msg(callback.message, text, reply_markup=kb.confirm_kb(deal_id))
+    await callback.answer("✅ Оплата прошла!")
+
+    seller_id = deal["seller_id"] or deal["creator_id"]
+    if seller_id and seller_id != buyer_id:
+        try:
+            await bot_send_msg(
+                callback.bot, seller_id,
+                f"{em.MONEYBAG} <b>Сделка #{deal_id} оплачена!</b>\n\n"
+                f"{em.SHIELD} Деньги ({sym} {fmt(deal['amount'])} {deal['currency']}) заморожены.\n\n"
+                f"{em.IMP1}{em.IMP2}{em.IMP3} <b>ВНИМАНИЕ!</b>\n"
+                f"Передавайте товар <b>ТОЛЬКО</b> через <b>{SUPPORT_USERNAME}</b>\n\n"
+                f"{em.CROSS} Напрямую покупателю — сделка аннулируется!"
+            )
+        except Exception:
+            pass
+
+    buyer = callback.from_user
+    uname = f"@{buyer.username}" if buyer.username else f"id:{buyer.id}"
+    try:
+        me = await callback.bot.get_me()
+        link = f"https://t.me/{me.username}?start=deal_{deal_id}"
+        await bot_send_msg(
+            callback.bot, ADMIN_ID,
+            f"💳 <b>Сделка #{deal_id} оплачена!</b>\n\n"
+            f"Покупатель: {uname} (<code>{buyer.id}</code>)\n"
+            f"Сумма: {sym} {fmt(deal['amount'])} {deal['currency']}\n"
+            f"Товар: {deal['description']}\n\n"
+            f"🔗 <b>Ссылка сделки:</b>\n{link}"
+        )
+    except Exception:
+        pass
+
+@router.callback_query(F.data.startswith("confirm_deal_"))
+async def confirm_deal(callback: CallbackQuery):
+    deal_id = callback.data[13:]
