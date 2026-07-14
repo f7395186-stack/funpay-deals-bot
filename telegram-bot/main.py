@@ -61,8 +61,11 @@ async def main():
         logging.critical("BOT_TOKEN не задан!")
         return
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-    await db.init_db()
+    # Open the port FIRST, before anything else, so hosts like Render mark
+    # the deploy healthy immediately -- independent of how long DB setup or
+    # Telegram API calls take.
     await _run_keepalive_server()
+    await db.init_db()
     asyncio.create_task(_self_ping_loop())
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage=MemoryStorage())
