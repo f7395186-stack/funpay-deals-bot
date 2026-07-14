@@ -75,6 +75,10 @@ async def main():
     dp.include_router(balance.router)
     dp.include_router(requisites.router)
     dp.include_router(referrals.router)
+    # Clear any stale webhook/pending updates left over from a previous
+    # instance (e.g. an overlapping deploy) so a fresh instance doesn't
+    # fight over the same long-poll connection or replay a backlog.
+    await bot.delete_webhook(drop_pending_updates=True)
     logging.info("Funpay Deals Bot запущен...")
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
