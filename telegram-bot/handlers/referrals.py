@@ -4,20 +4,20 @@ import database as db
 import keyboards as kb
 import emojis as em
 from helpers import edit_msg
+from i18n import t
 
 router = Router()
 
 
 @router.callback_query(F.data == "referrals")
 async def referrals_handler(callback: CallbackQuery):
+    lang = await db.get_lang(callback.from_user.id)
     me = await callback.bot.get_me()
     link = f"https://t.me/{me.username}?start=ref{callback.from_user.id}"
     count = await db.count_referrals(callback.from_user.id)
-    text = (
-        f"{em.GIFT} <b>Реферальная программа</b>\n\n"
-        f"{em.PEOPLE} Приглашено друзей: <b>{count}</b>\n\n"
-        f"{em.LIGHTNING} Ваша реферальная ссылка:\n<code>{link}</code>\n\n"
-        f"{em.STAR} Делитесь ссылкой — приглашённые друзья закрепляются за вами навсегда."
+    text = t(
+        lang, "referrals_text", gift=em.GIFT, people=em.PEOPLE, count=count,
+        lightning=em.LIGHTNING, link=link, star=em.STAR,
     )
-    await edit_msg(callback.message, text, reply_markup=kb.referrals_kb(link))
+    await edit_msg(callback.message, text, reply_markup=kb.referrals_kb(link, lang))
     await callback.answer()

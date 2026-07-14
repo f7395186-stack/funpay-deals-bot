@@ -6,6 +6,7 @@ import keyboards as kb
 import emojis as em
 from helpers import send_msg, edit_msg, bot_send_msg, fmt
 from states import BalanceAction
+from i18n import t
 from config import ADMIN_ID, SUPPORT_USERNAME
 
 router = Router()
@@ -15,10 +16,10 @@ CUR_FIELDS = [("Stars", "bal_stars"), ("USDT", "bal_usdt"), ("TON", "bal_ton"),
               ("UAH", "bal_uah")]
 
 
-def _balance_text(user, user_id: int) -> str:
+def _balance_text(user, user_id: int, lang: str) -> str:
     lines = [
-        f"{em.WALLET} <b>Ваш баланс</b>\n",
-        f"{em.KEY} Ваш ID: <code>{user_id}</code>\n",
+        t(lang, "balance_header", wallet=em.WALLET),
+        t(lang, "balance_id_line", key=em.KEY, uid=user_id),
     ]
     for cur, field in CUR_FIELDS:
         val = user[field] if user else 0
@@ -29,8 +30,9 @@ def _balance_text(user, user_id: int) -> str:
 @router.callback_query(F.data == "balance")
 async def balance_handler(callback: CallbackQuery, state: FSMContext):
     await state.clear()
+    lang = await db.get_lang(callback.from_user.id)
     user = await db.get_user(callback.from_user.id)
-    await edit_msg(callback.message, _balance_text(user, callback.from_user.id), reply_markup=kb.balance_kb())
+    await edit_msg(callback.message, _balance_text(user, callback.from_user.id, lang), reply_markup=kb.balance_kb(lang))
     await callback.answer()
 
 
@@ -41,13 +43,10 @@ async def add_balance_command(message: Message):
     # ANY amount with no verification, which effectively makes the in-bot
     # balance meaningless as a record of real money. Every use is logged to
     # the admin for visibility, but nothing here blocks or limits it.
+    lang = await db.get_lang(message.from_user.id)
     parts = message.text.split()
     if len(parts) != 4:
-        await send_msg(
-            message,
-            f"{em.CROSS} Формат: <code>/add id сумма валюта</code>\n"
-            f"Например: <code>/add 123456789 100 USDT</code>",
-        )
+        await send_msg(message, t(lang, "add_format_error", cross=em.CROSS))
         return
     _, target_id, amount_raw, currency_raw = parts
     currency = db.normalize_currency(currency_raw)
@@ -58,7 +57,7 @@ async def add_balance_command(message: Message):
     except Exception:
         await send_msg(
             message,
-            f"{em.CROSS} Некорректные данные. Валюты: {', '.join(db.CURRENCY_FIELDS.keys())}",
+            t(lang, "add_invalid_data", cross=em.CROSS, currencies=", ".join(db.CURRENCY_FIELDS.keys())),
         )
         return
 
@@ -69,15 +68,17 @@ async def add_balance_command(message: Message):
 
     await send_msg(
         message,
-        f"{em.VERIFIED} <b>Начислено!</b>\n\n"
-        f"{em.DOLLAR} {sym} {fmt(amount)} {currency} зачислено на ID <code>{target_id}</code>",
+        t(lang, "add_credited_to_invoker", verified=em.VERIFIED, dollar=em.DOLLAR,
+          sym=sym, amount=fmt(amount), currency=currency, target_id=target_id),
     )
 
     if target_id != user.id:
         try:
+            target_lang = await db.get_lang(target_id)
             await bot_send_msg(
                 message.bot, target_id,
-                f"{em.MONEYBAG} <b>Баланс пополнен!</b>\n\n{em.DOLLAR} +{sym} {fmt(amount)} {currency}",
+                t(target_lang, "balance_topped_up_notify", moneybag=em.MONEYBAG, dollar=em.DOLLAR,
+                  sym=sym, amount=fmt(amount), currency=currency),
             )
         except Exception:
             pass
@@ -96,48 +97,47 @@ async def add_balance_command(message: Message):
 
 @router.callback_query(F.data == "deposit")
 async def deposit_handler(callback: CallbackQuery):
-    text = (
-        f"{em.MONEYBAG} <b>Пополнение баланса</b>\n\n"
-        f"{em.NOTEPAD} Пополнение проходит через оператора, чтобы гарантировать безопасность средств.\n\n"
-        f"{em.PHONE} Напишите в поддержку <b>{SUPPORT_USERNAME}</b> и укажите:\n"
-        f"— сумму и валюту пополнения\n"
-        f"— ваш ID: <code>{callback.from_user.id}</code>\n\n"
-        f"{em.CLOCK} Баланс будет зачислен после подтверждения оплаты."
+    lang = await db.get_lang(callback.from_user.id)
+    text = t(
+        lang, "deposit_text", moneybag=em.MONEYBAG, notepad=em.NOTEPAD, phone=em.PHONE,
+        support=SUPPORT_USERNAME, uid=callback.from_user.id, clock=em.CLOCK,
     )
-    await edit_msg(callback.message, text, reply_markup=kb.back_kb())
+    await edit_msg(callback.message, text, reply_markup=kb.back_kb(lang))
     await callback.answer()
 
 
 @router.callback_query(F.data == "withdraw")
 async def withdraw_handler(callback: CallbackQuery, state: FSMContext):
+    lang = await db.get_lang(callback.from_user.id)
     await state.set_state(BalanceAction.choosing_withdraw_currency)
-    text = f"{em.CALC} <b>Вывод средств — выберите валюту:</b>"
-    await edit_msg(callback.message, text, reply_markup=kb.withdraw_currency_kb())
+    text = t(lang, "withdraw_choose_currency", calc=em.CALC)
+    await edit_msg(callback.message, text, reply_markup=kb.withdraw_currency_kb(lang))
     await callback.answer()
 
 
 @router.callback_query(BalanceAction.choosing_withdraw_currency, F.data.startswith("wcur_"))
 async def withdraw_currency_chosen(callback: CallbackQuery, state: FSMContext):
+    lang = await db.get_lang(callback.from_user.id)
     currency = callback.data[5:]
     user = await db.get_user(callback.from_user.id)
     field = db.CURRENCY_FIELDS[currency]
     available = user[field] if user else 0
     if available <= 0:
-        await callback.answer(f"❌ У вас нет средств в {currency}.", show_alert=True)
+        await callback.answer(t(lang, "alert_no_funds_in", currency=currency), show_alert=True)
         return
     await state.update_data(currency=currency)
     await state.set_state(BalanceAction.entering_withdraw_amount)
-    text = (
-        f"{em.CALC} <b>Введите сумму вывода</b>\n\n"
-        f"{em.WALLET} Доступно: {CUR_SYM.get(currency, currency)} {fmt(available)} {currency}\n\n"
-        f"{em.PENCIL} Введите число, например: <code>100</code>"
+    text = t(
+        lang, "withdraw_enter_amount", calc=em.CALC, wallet=em.WALLET,
+        sym=CUR_SYM.get(currency, currency), available=fmt(available), currency=currency, pencil=em.PENCIL,
     )
-    await edit_msg(callback.message, text, reply_markup=kb.cancel_kb())
+    await edit_msg(callback.message, text, reply_markup=kb.cancel_kb(lang))
     await callback.answer()
 
 
 @router.message(BalanceAction.entering_withdraw_amount)
 async def withdraw_amount_entered(message: Message, state: FSMContext):
+    lang = await db.get_lang(message.from_user.id)
     data = await state.get_data()
     currency = data["currency"]
     user = await db.get_user(message.from_user.id)
@@ -148,24 +148,25 @@ async def withdraw_amount_entered(message: Message, state: FSMContext):
     except Exception:
         await send_msg(
             message,
-            f"{em.CROSS} <b>Ошибка:</b> введите число от 0 до {fmt(available)} {currency}.",
-            reply_markup=kb.cancel_kb(),
+            t(lang, "withdraw_amount_error", cross=em.CROSS, available=fmt(available), currency=currency),
+            reply_markup=kb.cancel_kb(lang),
         )
         return
     await state.update_data(amount=amount)
     await state.set_state(BalanceAction.entering_withdraw_requisite)
-    text = (
-        f"{em.KEY} <b>Укажите реквизит для вывода</b>\n\n"
-        f"{em.PENCIL} Введите карту, кошелёк или username, куда вывести {CUR_SYM.get(currency, currency)} {fmt(amount)} {currency}."
+    text = t(
+        lang, "withdraw_enter_requisite", key=em.KEY, pencil=em.PENCIL,
+        sym=CUR_SYM.get(currency, currency), amount=fmt(amount), currency=currency,
     )
-    await send_msg(message, text, reply_markup=kb.cancel_kb())
+    await send_msg(message, text, reply_markup=kb.cancel_kb(lang))
 
 
 @router.message(BalanceAction.entering_withdraw_requisite)
 async def withdraw_requisite_entered(message: Message, state: FSMContext):
+    lang = await db.get_lang(message.from_user.id)
     requisite = message.text.strip()
     if len(requisite) < 3:
-        await send_msg(message, f"{em.CROSS} Реквизит слишком короткий.", reply_markup=kb.cancel_kb())
+        await send_msg(message, t(lang, "withdraw_requisite_short", cross=em.CROSS), reply_markup=kb.cancel_kb(lang))
         return
     data = await state.get_data()
     currency, amount = data["currency"], data["amount"]
@@ -173,20 +174,18 @@ async def withdraw_requisite_entered(message: Message, state: FSMContext):
     ok = await db.debit_balance(message.from_user.id, currency, amount)
     if not ok:
         await state.clear()
-        await send_msg(message, f"{em.CROSS} Недостаточно средств.", reply_markup=kb.back_kb())
+        await send_msg(message, t(lang, "withdraw_insufficient_funds", cross=em.CROSS), reply_markup=kb.back_kb(lang))
         return
 
     await state.clear()
     withdraw_id = await db.create_withdrawal(message.from_user.id, currency, amount, requisite)
     sym = CUR_SYM.get(currency, currency)
-    text = (
-        f"{em.VERIFIED} <b>Заявка на вывод создана!</b>\n\n"
-        f"{em.GRID} <b>ID заявки:</b> <code>{withdraw_id}</code>\n"
-        f"{em.DOLLAR} <b>Сумма:</b> {sym} {fmt(amount)} {currency}\n"
-        f"{em.KEY} <b>Реквизит:</b> <code>{requisite}</code>\n\n"
-        f"{em.CLOCK} Выплата обрабатывается вручную, обычно в течение 24 часов."
+    text = t(
+        lang, "withdraw_created", verified=em.VERIFIED, grid=em.GRID, withdraw_id=withdraw_id,
+        dollar=em.DOLLAR, sym=sym, amount=fmt(amount), currency=currency, key=em.KEY,
+        requisite=requisite, clock=em.CLOCK,
     )
-    await send_msg(message, text, reply_markup=kb.back_kb())
+    await send_msg(message, text, reply_markup=kb.back_kb(lang))
 
     user = message.from_user
     uname = f"@{user.username}" if user.username else f"id:{user.id}"

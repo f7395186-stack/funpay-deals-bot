@@ -6,20 +6,18 @@ import database as db
 import keyboards as kb
 import emojis as em
 from helpers import send_msg, edit_msg, bot_send_msg
-from config import ADMIN_ID
+from i18n import t
+from config import ADMIN_ID, SUPPORT_USERNAME
 
 router = Router()
 
-WELCOME = (
-    f"{em.STAR} <b>Добро пожаловать в Funpay Deals Bot</b> — "
-    f"ваш надёжный сервис безопасных сделок! {em.SHIELD}\n\n"
-    f"{em.LIGHTNING} Автоматизированные сделки\n"
-    f"{em.DIAMOND} Поддержка 7 валют\n"
-    f"{em.CHART} Реферальная система\n"
-    f"{em.WALLET} Вывод в любой валюте\n"
-    f"{em.CLOCK24} Поддержка 24/7\n\n"
-    f"{em.HANDSHAKE} <b>Выберите раздел ниже!</b>"
-)
+
+def welcome_text(lang: str) -> str:
+    return t(
+        lang, "welcome",
+        star=em.STAR, shield=em.SHIELD, lightning=em.LIGHTNING, diamond=em.DIAMOND,
+        chart=em.CHART, wallet=em.WALLET, clock24=em.CLOCK24, handshake=em.HANDSHAKE,
+    )
 
 
 @router.message(CommandStart())
@@ -57,47 +55,44 @@ async def cmd_start(message: Message, state: FSMContext):
         except Exception:
             pass
 
+    lang = await db.get_lang(user.id)
+
     if deal_id:
         deal = await db.get_deal(deal_id)
         if deal and deal["status"] == "pending" and deal["creator_id"] != user.id:
             from handlers.deals import show_deal_payment
-            await show_deal_payment(message, deal_id)
+            await show_deal_payment(message, deal_id, lang)
             return
 
-    await send_msg(message, WELCOME, reply_markup=kb.main_menu_kb())
+    await send_msg(message, welcome_text(lang), reply_markup=kb.main_menu_kb(lang))
 
 
 @router.callback_query(F.data == "main_menu")
 async def back_to_main(callback: CallbackQuery, state: FSMContext):
     await state.clear()
-    await edit_msg(callback.message, WELCOME, reply_markup=kb.main_menu_kb())
+    lang = await db.get_lang(callback.from_user.id)
+    await edit_msg(callback.message, welcome_text(lang), reply_markup=kb.main_menu_kb(lang))
     await callback.answer()
 
 
 @router.callback_query(F.data == "faq")
 async def faq_handler(callback: CallbackQuery):
-    text = (
-        f"{em.SHIELD} <b>F.A.Q — Часто задаваемые вопросы</b>\n\n"
-        f"{em.CHECK} <b>Как работает гарант?</b>\n"
-        "Покупатель платит — деньги замораживаются. "
-        "Продавец передаёт товар через @Funpay_Support_Deals. "
-        "После подтверждения — деньги у продавца.\n\n"
-        f"{em.DOLLAR} <b>Комиссия:</b> 5%\n\n"
-        f"{em.STAR} <b>Валюты:</b> Stars · USDT · TON · RUB · BYN · KZT · UZS\n\n"
-        f"{em.WALLET} <b>Вывод:</b> «Баланс» → «Вывести»\n\n"
-        f"{em.PHONE} Поддержка: <b>@Funpay_Support_Deals</b>"
+    lang = await db.get_lang(callback.from_user.id)
+    text = t(
+        lang, "faq",
+        shield=em.SHIELD, check=em.CHECK, dollar=em.DOLLAR, star=em.STAR,
+        wallet=em.WALLET, phone=em.PHONE, support=SUPPORT_USERNAME,
     )
-    await edit_msg(callback.message, text, reply_markup=kb.back_kb())
+    await edit_msg(callback.message, text, reply_markup=kb.back_kb(lang))
     await callback.answer()
 
 
 @router.callback_query(F.data == "support")
 async def support_handler(callback: CallbackQuery):
-    text = (
-        f"{em.GEAR} <b>Поддержка Funpay Deals</b>\n\n"
-        f"{em.PHONE} Аккаунт: <b>@Funpay_Support_Deals</b>\n\n"
-        f"{em.CLOCK} Время ответа: до 15 минут\n"
-        f"{em.SHIELD} Работаем 24/7 без выходных."
+    lang = await db.get_lang(callback.from_user.id)
+    text = t(
+        lang, "support",
+        gear=em.GEAR, phone=em.PHONE, support=SUPPORT_USERNAME, clock=em.CLOCK, shield=em.SHIELD,
     )
-    await edit_msg(callback.message, text, reply_markup=kb.back_kb())
+    await edit_msg(callback.message, text, reply_markup=kb.back_kb(lang))
     await callback.answer()

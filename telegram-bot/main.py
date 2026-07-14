@@ -12,7 +12,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiohttp import web
 from config import BOT_TOKEN
 import database as db
-from handlers import start, deals, balance, requisites, referrals, admin
+from handlers import start, deals, balance, requisites, referrals, admin, language
 
 
 async def _self_ping_loop():
@@ -75,6 +75,7 @@ async def main():
     dp.include_router(balance.router)
     dp.include_router(requisites.router)
     dp.include_router(referrals.router)
+    dp.include_router(language.router)
     # Clear any stale webhook/pending updates left over from a previous
     # instance (e.g. an overlapping deploy) so a fresh instance doesn't
     # fight over the same long-poll connection or replay a backlog.

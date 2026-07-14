@@ -13,7 +13,8 @@ async def init_db():
             bal_stars REAL DEFAULT 0, bal_usdt REAL DEFAULT 0, bal_ton REAL DEFAULT 0,
             bal_rub   REAL DEFAULT 0, bal_byn  REAL DEFAULT 0, bal_kzt REAL DEFAULT 0,
             bal_uzs   REAL DEFAULT 0,
-            stars_username TEXT DEFAULT '')""")
+            stars_username TEXT DEFAULT '',
+            lang TEXT DEFAULT 'ru')""")
         await db.execute("""CREATE TABLE IF NOT EXISTS deals (
             id TEXT PRIMARY KEY, creator_id INTEGER NOT NULL, creator_role TEXT NOT NULL,
             buyer_id INTEGER DEFAULT NULL, seller_id INTEGER DEFAULT NULL,
@@ -26,6 +27,12 @@ async def init_db():
         # Migration: add UAH balance column for bots created before UAH support existed.
         try:
             await db.execute("ALTER TABLE users ADD COLUMN bal_uah REAL DEFAULT 0")
+        except Exception:
+            pass
+        # Migration: add lang column for bots created before the language
+        # switcher existed.
+        try:
+            await db.execute("ALTER TABLE users ADD COLUMN lang TEXT DEFAULT 'ru'")
         except Exception:
             pass
         await db.commit()
@@ -52,6 +59,20 @@ async def get_user(user_id):
 async def update_username(user_id, username):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("UPDATE users SET username=? WHERE id=?", (username or "", user_id))
+        await db.commit()
+
+
+async def get_lang(user_id) -> str:
+    user = await get_user(user_id)
+    lang = user["lang"] if user and "lang" in user.keys() else None
+    return lang if lang in ("ru", "en") else "ru"
+
+
+async def set_lang(user_id, lang: str):
+    if lang not in ("ru", "en"):
+        return
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE users SET lang=? WHERE id=?", (lang, user_id))
         await db.commit()
 
 

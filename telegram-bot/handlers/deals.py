@@ -6,6 +6,7 @@ import keyboards as kb
 import emojis as em
 from helpers import send_msg, edit_msg, bot_send_msg, fmt
 from states import DealCreation
+from i18n import t
 from config import SUPPORT_USERNAME, COMMISSION, ADMIN_ID
 
 router = Router()
@@ -15,75 +16,67 @@ CUR_SYM = {"Stars": "⭐", "USDT": "💵", "TON": "💎", "RUB": "🇷🇺", "BY
 @router.callback_query(F.data == "create_deal")
 async def create_deal_start(callback: CallbackQuery, state: FSMContext):
     await state.set_state(DealCreation.choosing_role)
-    text = (
-        f"{em.HANDSHAKE} <b>Создание сделки</b>\n\n"
-        f"{em.QUESTION} Кем вы выступаете в этой сделке?"
-    )
-    await edit_msg(callback.message, text, reply_markup=kb.deal_role_kb())
+    lang = await db.get_lang(callback.from_user.id)
+    text = t(lang, "deal_role_prompt", handshake=em.HANDSHAKE, question=em.QUESTION)
+    await edit_msg(callback.message, text, reply_markup=kb.deal_role_kb(lang))
     await callback.answer()
 
 
 @router.callback_query(DealCreation.choosing_role, F.data.in_({"role_buyer", "role_seller"}))
 async def role_chosen(callback: CallbackQuery, state: FSMContext):
+    lang = await db.get_lang(callback.from_user.id)
     role = "buyer" if callback.data == "role_buyer" else "seller"
     if role == "seller" and not await db.has_requisites(callback.from_user.id):
         await state.clear()
-        text = (
-            f"{em.IMP1}{em.IMP2}{em.IMP3} <b>Ошибка: не привязаны реквизиты!</b>\n\n"
-            f"{em.SHIELD} Мы должны знать, куда переводить деньги.\n"
-            f"{em.KEY} Привяжите реквизиты прямо сейчас."
+        text = t(
+            lang, "deal_no_requisites",
+            imp1=em.IMP1, imp2=em.IMP2, imp3=em.IMP3, shield=em.SHIELD, key=em.KEY,
         )
-        await edit_msg(callback.message, text, reply_markup=kb.attach_req_kb())
+        await edit_msg(callback.message, text, reply_markup=kb.attach_req_kb(lang))
         await callback.answer()
         return
     await state.update_data(role=role)
     await state.set_state(DealCreation.choosing_currency)
-    text = (
-        f"{em.DOLLAR} <b>Шаг 1 из 3 — Выберите валюту:</b>\n\n"
-        f"{em.STAR} Stars · {em.DIAMOND} TON · {em.DOLLAR} USDT · 🇷🇺 RUB · 🇧🇾 BYN · 🇰🇿 KZT · 🇺🇿 UZS · 🇺🇦 UAH"
-    )
-    await edit_msg(callback.message, text, reply_markup=kb.currency_kb())
+    text = t(lang, "deal_choose_currency", dollar=em.DOLLAR, star=em.STAR, diamond=em.DIAMOND)
+    await edit_msg(callback.message, text, reply_markup=kb.currency_kb(lang))
     await callback.answer()
 
 
 @router.callback_query(DealCreation.choosing_currency, F.data.startswith("cur_"))
 async def currency_chosen(callback: CallbackQuery, state: FSMContext):
+    lang = await db.get_lang(callback.from_user.id)
     currency = callback.data[4:]
     await state.update_data(currency=currency)
     await state.set_state(DealCreation.entering_amount)
-    text = (
-        f"{em.CALC} <b>Шаг 2 из 3 — Введите сумму</b>\n\n"
-        f"{em.TIMER} Валюта: {CUR_SYM.get(currency, currency)} <b>{currency}</b>\n\n"
-        f"{em.PENCIL} Введите число, например: <code>500</code>"
+    text = t(
+        lang, "deal_enter_amount", calc=em.CALC, timer=em.TIMER,
+        sym=CUR_SYM.get(currency, currency), currency=currency, pencil=em.PENCIL,
     )
-    await edit_msg(callback.message, text, reply_markup=kb.cancel_kb())
+    await edit_msg(callback.message, text, reply_markup=kb.cancel_kb(lang))
     await callback.answer()
 
 
 @router.message(DealCreation.entering_amount)
 async def amount_entered(message: Message, state: FSMContext):
+    lang = await db.get_lang(message.from_user.id)
     try:
         amount = float(message.text.replace(",", "."))
         assert amount > 0
     except Exception:
-        await send_msg(message, f"{em.CROSS} <b>Ошибка:</b> Введите число больше нуля.",
-                       reply_markup=kb.cancel_kb())
+        await send_msg(message, t(lang, "deal_amount_error", cross=em.CROSS), reply_markup=kb.cancel_kb(lang))
         return
     await state.update_data(amount=amount)
     await state.set_state(DealCreation.entering_description)
-    text = (
-        f"{em.NOTEPAD} <b>Шаг 3 из 3 — Опишите товар / услугу</b>\n\n"
-        f"{em.PENCIL} Пример: <i>Аккаунт Minecraft Premium, 2024</i>"
-    )
-    await send_msg(message, text, reply_markup=kb.cancel_kb())
+    text = t(lang, "deal_enter_description", notepad=em.NOTEPAD, pencil=em.PENCIL)
+    await send_msg(message, text, reply_markup=kb.cancel_kb(lang))
 
 
 @router.message(DealCreation.entering_description)
 async def description_entered(message: Message, state: FSMContext):
+    lang = await db.get_lang(message.from_user.id)
     desc = message.text.strip()
     if len(desc) < 3:
-        await send_msg(message, f"{em.CROSS} Описание слишком короткое. Минимум 3 символа.",
-                       reply_markup=kb.cancel_kb())
+        await send_msg(message, t(lang, "deal_desc_too_short", cross=em.CROSS), reply_markup=kb.cancel_kb(lang))
         return
     data = await state.get_data()
     did  = await db.create_deal(message.from_user.id, data["role"], data["amount"], data["currency"], desc)
@@ -91,16 +84,14 @@ async def description_entered(message: Message, state: FSMContext):
     me   = await message.bot.get_me()
     link = f"https://t.me/{me.username}?start=deal_{did}"
     sym  = CUR_SYM.get(data["currency"], data["currency"])
-    text = (
-        f"{em.VERIFIED} <b>Сделка создана!</b>\n\n"
-        f"{em.GRID} <b>ID:</b> <code>{did}</code>\n"
-        f"{em.DOLLAR} <b>Сумма:</b> {sym} {fmt(data['amount'])} {data['currency']}\n"
-        f"{em.BRIEFCASE} <b>Описание:</b> {desc}\n"
-        f"{em.CLOCK} <b>Статус:</b> Ожидание оплаты\n\n"
-        f"{em.LIGHTNING} <b>Ссылка для покупателя:</b>\n<code>{link}</code>\n\n"
-        f"{em.SHIELD} Отправьте эту ссылку покупателю."
+    text = t(
+        lang, "deal_created",
+        verified=em.VERIFIED, grid=em.GRID, did=did, dollar=em.DOLLAR,
+        sym=sym, amount=fmt(data["amount"]), currency=data["currency"],
+        briefcase=em.BRIEFCASE, desc=desc, clock=em.CLOCK,
+        lightning=em.LIGHTNING, link=link, shield=em.SHIELD,
     )
-    await send_msg(message, text, reply_markup=kb.back_kb())
+    await send_msg(message, text, reply_markup=kb.back_kb(lang))
 
     user = message.from_user
     uname = f"@{user.username}" if user.username else f"id:{user.id}"
@@ -119,61 +110,67 @@ async def description_entered(message: Message, state: FSMContext):
         pass
 
 
-async def show_deal_payment(message: Message, deal_id: str):
+async def show_deal_payment(message: Message, deal_id: str, lang: str | None = None):
+    if lang is None:
+        lang = await db.get_lang(message.from_user.id)
     deal = await db.get_deal(deal_id)
     if not deal:
-        await send_msg(message, f"{em.CROSS} Сделка не найдена.", reply_markup=kb.back_kb())
+        await send_msg(message, t(lang, "deal_not_found", cross=em.CROSS), reply_markup=kb.back_kb(lang))
         return
     if deal["status"] != "pending":
-        await send_msg(message, f"{em.CROSS} Сделка недоступна (статус: {deal['status']}).",
-                       reply_markup=kb.back_kb())
+        await send_msg(
+            message, t(lang, "deal_unavailable", cross=em.CROSS, status=deal["status"]),
+            reply_markup=kb.back_kb(lang),
+        )
         return
     sym = CUR_SYM.get(deal["currency"], deal["currency"])
-    text = (
-        f"{em.SHIELD} <b>Сделка #{deal_id}</b>\n\n"
-        f"{em.BRIEFCASE} <b>Описание:</b> {deal['description']}\n"
-        f"{em.DOLLAR} <b>Сумма:</b> {sym} {fmt(deal['amount'])} {deal['currency']}\n"
-        f"{em.CLOCK} <b>Статус:</b> Ожидание оплаты\n\n"
-        f"{em.HANDSHAKE} Нажмите кнопку ниже для оплаты."
+    text = t(
+        lang, "deal_payment_prompt",
+        shield=em.SHIELD, deal_id=deal_id, briefcase=em.BRIEFCASE, desc=deal["description"],
+        dollar=em.DOLLAR, sym=sym, amount=fmt(deal["amount"]), currency=deal["currency"],
+        clock=em.CLOCK, handshake=em.HANDSHAKE,
     )
-    await send_msg(message, text, reply_markup=kb.pay_deal_kb(deal_id))
+    await send_msg(message, text, reply_markup=kb.pay_deal_kb(deal_id, lang))
 
 
 @router.callback_query(F.data.startswith("pay_deal_"))
 async def pay_deal(callback: CallbackQuery):
+    lang = await db.get_lang(callback.from_user.id)
     deal_id = callback.data[9:]
     deal    = await db.get_deal(deal_id)
     if not deal:
-        await callback.answer("❌ Сделка не найдена.", show_alert=True)
+        await callback.answer(t(lang, "alert_deal_not_found"), show_alert=True)
         return
     if deal["status"] != "pending":
-        await callback.answer("❌ Сделка уже оплачена.", show_alert=True)
+        await callback.answer(t(lang, "alert_deal_already_paid"), show_alert=True)
         return
     if deal["creator_id"] == callback.from_user.id:
-        await callback.answer("❌ Нельзя оплатить свою сделку.", show_alert=True)
+        await callback.answer(t(lang, "alert_cant_pay_own"), show_alert=True)
         return
     buyer_id = callback.from_user.id
     await db.set_deal_buyer(deal_id, buyer_id)
     await db.update_deal_status(deal_id, "paid")
     sym = CUR_SYM.get(deal["currency"], deal["currency"])
-    text = (
-        f"{em.VERIFIED} <b>Оплата принята!</b>\n\n"
-        f"{em.SHIELD} {sym} {fmt(deal['amount'])} {deal['currency']} заморожено.\n\n"
-        f"{em.CLOCK} Ожидайте, пока продавец передаст товар через <b>{SUPPORT_USERNAME}</b>"
+    text = t(
+        lang, "deal_payment_accepted",
+        verified=em.VERIFIED, shield=em.SHIELD, sym=sym, amount=fmt(deal["amount"]),
+        currency=deal["currency"], clock=em.CLOCK, support=SUPPORT_USERNAME,
     )
-    await edit_msg(callback.message, text, reply_markup=kb.confirm_kb(deal_id))
-    await callback.answer("✅ Оплата прошла!")
+    await edit_msg(callback.message, text, reply_markup=kb.confirm_kb(deal_id, lang))
+    await callback.answer(t(lang, "alert_payment_success"))
 
     seller_id = deal["seller_id"] or deal["creator_id"]
     if seller_id and seller_id != buyer_id:
         try:
+            seller_lang = await db.get_lang(seller_id)
             await bot_send_msg(
                 callback.bot, seller_id,
-                f"{em.MONEYBAG} <b>Сделка #{deal_id} оплачена!</b>\n\n"
-                f"{em.SHIELD} Деньги ({sym} {fmt(deal['amount'])} {deal['currency']}) заморожены.\n\n"
-                f"{em.IMP1}{em.IMP2}{em.IMP3} <b>ВНИМАНИЕ!</b>\n"
-                f"Передавайте товар <b>ТОЛЬКО</b> через <b>{SUPPORT_USERNAME}</b>\n\n"
-                f"{em.CROSS} Напрямую покупателю — сделка аннулируется!"
+                t(
+                    seller_lang, "deal_paid_notify_seller",
+                    moneybag=em.MONEYBAG, deal_id=deal_id, shield=em.SHIELD, sym=sym,
+                    amount=fmt(deal["amount"]), currency=deal["currency"],
+                    imp1=em.IMP1, imp2=em.IMP2, imp3=em.IMP3, support=SUPPORT_USERNAME, cross=em.CROSS,
+                ),
             )
         except Exception:
             pass
@@ -197,16 +194,17 @@ async def pay_deal(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("confirm_deal_"))
 async def confirm_deal(callback: CallbackQuery):
+    lang = await db.get_lang(callback.from_user.id)
     deal_id = callback.data[13:]
     deal = await db.get_deal(deal_id)
     if not deal:
-        await callback.answer("❌ Сделка не найдена.", show_alert=True)
+        await callback.answer(t(lang, "alert_deal_not_found"), show_alert=True)
         return
     if deal["status"] != "paid":
-        await callback.answer("❌ Сделку нельзя подтвердить на этом этапе.", show_alert=True)
+        await callback.answer(t(lang, "alert_cant_confirm_stage"), show_alert=True)
         return
     if deal["buyer_id"] != callback.from_user.id:
-        await callback.answer("❌ Подтвердить может только покупатель.", show_alert=True)
+        await callback.answer(t(lang, "alert_only_buyer_confirm"), show_alert=True)
         return
 
     seller_id = deal["seller_id"] or deal["creator_id"]
@@ -216,22 +214,24 @@ async def confirm_deal(callback: CallbackQuery):
     await db.update_deal_status(deal_id, "completed")
 
     sym = CUR_SYM.get(deal["currency"], deal["currency"])
-    text = (
-        f"{em.VERIFIED} <b>Сделка #{deal_id} завершена!</b>\n\n"
-        f"{em.SHIELD} Спасибо, что пользуетесь Funpay Deals.\n"
-        f"{em.CHART} Продавцу зачислено {sym} {fmt(payout)} {deal['currency']} (комиссия {int(COMMISSION*100)}%)."
+    text = t(
+        lang, "deal_completed_buyer",
+        verified=em.VERIFIED, deal_id=deal_id, shield=em.SHIELD, chart=em.CHART,
+        sym=sym, payout=fmt(payout), currency=deal["currency"], commission_pct=int(COMMISSION * 100),
     )
-    await edit_msg(callback.message, text, reply_markup=kb.back_kb())
-    await callback.answer("✅ Сделка завершена!")
+    await edit_msg(callback.message, text, reply_markup=kb.back_kb(lang))
+    await callback.answer(t(lang, "alert_deal_completed"))
 
     if seller_id != callback.from_user.id:
         try:
+            seller_lang = await db.get_lang(seller_id)
             await bot_send_msg(
                 callback.bot, seller_id,
-                f"{em.MONEYBAG} <b>Сделка #{deal_id} завершена!</b>\n\n"
-                f"{em.CHECK} Покупатель подтвердил получение товара.\n"
-                f"{em.DOLLAR} На баланс зачислено: {sym} {fmt(payout)} {deal['currency']}\n\n"
-                f"{em.WALLET} Вывести средства можно в разделе «Баланс»."
+                t(
+                    seller_lang, "deal_completed_notify_seller",
+                    moneybag=em.MONEYBAG, deal_id=deal_id, check=em.CHECK, dollar=em.DOLLAR,
+                    sym=sym, payout=fmt(payout), currency=deal["currency"], wallet=em.WALLET,
+                ),
             )
         except Exception:
             pass
