@@ -15,6 +15,27 @@ import database as db
 from handlers import start, deals, balance, requisites, referrals, admin
 
 
+async def _self_ping_loop():
+    """On Render, the free Web Service instance type spins down after ~15
+    minutes without incoming HTTP traffic. Render sets RENDER_EXTERNAL_URL
+    automatically for web services -- if present, we periodically make a
+    real HTTP request to our own public URL so the service always looks
+    active, with no external ping service (cron-job.org/UptimeRobot) needed.
+    """
+    url = os.environ.get("RENDER_EXTERNAL_URL")
+    if not url:
+        return
+    from aiohttp import ClientSession, ClientTimeout
+    async with ClientSession(timeout=ClientTimeout(total=15)) as session:
+        while True:
+            await asyncio.sleep(600)  # every 10 minutes
+            try:
+                async with session.get(url) as resp:
+                    logging.info(f"Self-ping {url} -> {resp.status}")
+            except Exception as e:
+                logging.warning(f"Self-ping failed: {e}")
+
+
 async def _run_keepalive_server():
     """Tiny HTTP server so hosts like Render (which require a bound port for
     'Web Service' deployments) see the process as healthy. Telegram itself
@@ -42,6 +63,7 @@ async def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
     await db.init_db()
     await _run_keepalive_server()
+    asyncio.create_task(_self_ping_loop())
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(admin.router)
