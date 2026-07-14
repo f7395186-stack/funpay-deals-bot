@@ -313,6 +313,6 @@ TEXTS = {
 }
 
 
-def t(lang: str, key: str, **kwargs) -> str:
-    template = TEXTS[key][norm_lang(lang)]
+def t(lang: str, text_key: str, **kwargs) -> str:
+    template = TEXTS[text_key][norm_lang(lang)]
     return template.format(**kwargs) if kwargs else template
